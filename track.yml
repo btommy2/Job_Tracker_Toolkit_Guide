@@ -1,0 +1,41 @@
+name: Daily Job Tracker
+
+on:
+  # Daily at 14:00 UTC = 7:00 AM Mountain Time. Adjust the hour as needed.
+  schedule:
+    - cron: "0 14 * * *"
+  # Allow manual runs from the Actions tab.
+  workflow_dispatch: {}
+
+permissions:
+  contents: write  # needed to commit the updated state file back to the repo
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run job tracker
+        env:
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python job_tracker.py
+
+      - name: Commit updated state file
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "Job Tracker Bot"
+          git add seen_jobs.json
+          if git diff --staged --quiet; then
+            echo "No state changes to commit."
+          else
+            git commit -m "Update tracker state ($(date -u +%Y-%m-%d))"
+            git push
+          fi
